@@ -2,6 +2,57 @@ import { collection, addDoc, onSnapshot, query, doc, updateDoc,deleteDoc} from "
 import { db } from "../firebase/config.js";
 import { useState, useEffect } from "react";
 
+if ('Notification' in window) {
+  Notification.requestPermission().then((permission) => {
+    if (permission === 'granted') {
+      console.log('Notification permission granted.')
+    }
+  });
+}
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then((registration) => {
+    registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: process.env.NEXT_PUBLIC_APPLICATION_SERVER_KEY,
+    }).then((subscription) => {
+      console.log('Subscribed:', subscription.endpoint);
+    }).catch((error) => {
+      console.log('Subscription failed:', error);
+    });
+  });
+}
+
+const webpush = require('web-push');
+
+const pushSubscription = {
+  endpoint: 'https://'+process.env.NEXT_PUBLIC_DOMAIN,
+  keys: {
+    p256dh: 'public key',
+    auth: 'auth token'
+  }
+};
+
+const payload = JSON.stringify({
+  title: 'Hello!',
+  message: 'This is a push notification from Next.js!'
+});
+
+webpush.sendNotification(pushSubscription, payload).catch((error) => {
+  console.log('Push notification failed:', error);
+});
+
+self.addEventListener('push', (event) => {
+  const data = event.data.json();
+  const options = {
+    body: data.message,
+    icon: '/logo.png',
+    vibrate: [100, 50, 100]
+  };
+  event.waitUntil(self.registration.showNotification(data.title, options));
+});
+
+
+
 const unsub = onSnapshot(doc(db, "cities", "SF"), (doc) => {
     const source = doc.metadata.hasPendingWrites ? "Local" : "Server";
     console.log(source, " data: ", doc.data());
